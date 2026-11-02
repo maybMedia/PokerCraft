@@ -10,6 +10,7 @@ six players at a physical poker table, using hotbar actions while seated.
   or hand-based blind increases.
 - Server-managed dealing, betting, side pots, split pots, and private hole cards.
 - Animated dealing, tabletop chip stacks that follow player balances, and winner effects.
+- Ordered showdown reveals with a winning-hand display and optional show/muck controls.
 - A card HUD, public action announcements, a private turn chime, and a smooth overhead camera.
 - Loose playing cards, a 54-card deck including jokers, and a ceiling-mounted table light.
 - Editable Blockbench models in [art](art).
@@ -78,6 +79,10 @@ inventory and selected inventory slot remain intact. Select an action with **1-9
 | Sneak (default Shift)     | Stand up                                       |
 
 The P and V bindings can be changed in Minecraft's controls menu under PokerCraft.
+At a non-all-in showdown, players whose losing hand is optional to show can use
+slot **2** to show it or slot **1** to muck it. Required hands reveal in showdown
+order; fold wins keep cards private. Winners' hole cards are tossed onto the felt,
+and the HUD and overview display their best five-card hands.
 Leaving your stool, disconnecting, or dying folds a hand that is not all-in.
 On timeout, the server checks if no call is owed and otherwise folds.
 See the [gameplay guide](docs/poker-gameplay.md) for cash-outs, refunds, side pots,

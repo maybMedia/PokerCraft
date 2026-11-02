@@ -68,7 +68,12 @@ public final class PokerTableRenderer extends GeoBlockRenderer<PokerTableBlockEn
     public void renderCards(PokerTableBlockEntity table, NbtCompound state, float tickDelta,
                             MatrixStack matrices, VertexConsumerProvider vertices, int light) {
         Direction facing = table.getCachedState().get(com.brait.pokercraft.block.PokerTableBlock.FACING);
-        for (PokerCardLayout.Card card : PokerCardLayout.cards(table.getPos(), state, facing, tickDelta)) {
+        renderCardLayout(table, PokerCardLayout.cards(table.getPos(), state, facing, tickDelta), matrices, vertices, light);
+    }
+
+    public void renderCardLayout(PokerTableBlockEntity table, List<PokerCardLayout.Card> cards,
+                                 MatrixStack matrices, VertexConsumerProvider vertices, int light) {
+        for (PokerCardLayout.Card card : cards) {
             matrices.push();
             matrices.translate(card.center().x - table.getPos().getX(), card.center().y - table.getPos().getY(), card.center().z - table.getPos().getZ());
             matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(card.yaw()));

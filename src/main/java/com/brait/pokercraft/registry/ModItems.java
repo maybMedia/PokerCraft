@@ -21,7 +21,7 @@ public final class ModItems {
     // Display-only items for the virtual poker hotbar. Never inserted into player inventories.
     public static final java.util.Map<String, Item> ACTIONS = new java.util.LinkedHashMap<>();
     static {
-        for (String action : new String[]{"fold", "call", "raise", "minus", "plus", "allin", "join", "buyin", "admin", "info", "leave"})
+        for (String action : new String[]{"fold", "call", "raise", "minus", "plus", "allin", "join", "buyin", "admin", "info", "leave", "show", "muck"})
             ACTIONS.put(action, register("action_" + action, new Item.Settings().maxCount(1)));
     }
 

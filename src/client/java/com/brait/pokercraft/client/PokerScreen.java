@@ -47,8 +47,8 @@ public final class PokerScreen extends Screen {
         actionY = rowStart + 6 * rowStep + 26;
         lowerY = actionY + 26;
         int gap = 4, cell = (panelWidth - 24 - gap * 4) / 5, y = top + actionY;
-        fold = button("Fold", left + 12, y, cell, () -> send("fold"));
-        call = button("Check", left + 12 + (cell + gap), y, cell, () -> send("call"));
+        fold = button("Fold", left + 12, y, cell, () -> send(state.getBoolean("CanShow") ? "muck" : "fold"));
+        call = button("Check", left + 12 + (cell + gap), y, cell, () -> send(state.getBoolean("CanShow") ? "show" : "call"));
         allIn = button("All-in", left + 12 + (cell + gap) * 2, y, cell, () -> send("allin"));
         raise = new TextFieldWidget(textRenderer, left + 12 + (cell + gap) * 3, y, cell, 20, Text.literal("Raise total"));
         raise.setMaxLength(10); raise.setText(Long.toString(Math.max(1, state.getLong("MinRaiseTo"))));
@@ -80,8 +80,10 @@ public final class PokerScreen extends Screen {
         if (fold == null) return;
         int mine = state.getInt("MySeat"); boolean hand = state.getBoolean("InHand");
         boolean turn = !waiting && hand && mine >= 0 && mine == state.getInt("Actor");
-        fold.active = call.active = turn;
-        call.setMessage(Text.literal(state.getLong("ToCall") == 0 ? "Check" : "Call " + state.getLong("ToCall")));
+        boolean optionalShow = !waiting && state.getBoolean("CanShow");
+        fold.active = call.active = turn || optionalShow;
+        fold.setMessage(Text.literal(state.getBoolean("CanShow") ? "Muck" : "Fold"));
+        call.setMessage(Text.literal(state.getBoolean("CanShow") ? "Show hand" : state.getLong("ToCall") == 0 ? "Check" : "Call " + state.getLong("ToCall")));
         allIn.active = turn && (state.getBoolean("CanRaise") || myStack() <= state.getLong("ToCall"));
         bet.active = turn && state.getBoolean("CanRaise");
         join.active = !waiting && mine < 0 && state.getInt("PhysicalSeat") >= 0 && !hand;
@@ -125,7 +127,9 @@ public final class PokerScreen extends Screen {
         for (int i = 0; i < 5; i++) drawCard(context, i < board.length ? board[i] : -1, cardX + i * 32, top + (panelHeight < 270 ? 35 : 41), 1.6F);
         context.drawTextWithShadow(textRenderer, "Pot: " + state.getLong("Pot"), left + panelWidth / 2, top + 43, 0xF6DF8C);
         context.drawTextWithShadow(textRenderer, "Blinds: " + state.getLong("SmallBlind") + "/" + state.getLong("BigBlind"), left + panelWidth / 2, top + 57, 0xE0E6E0);
-        for (int seat = 0; seat < 6; seat++) {
+        boolean results = PokerShowdownView.render(context, tablePos, state, left + 10, top + rowStart - 2,
+                panelWidth - 20, 6 * rowStep, delta);
+        if (!results) for (int seat = 0; seat < 6; seat++) {
             NbtCompound p = null;
             for (NbtElement e : state.getList("Players", NbtElement.COMPOUND_TYPE)) if (((NbtCompound) e).getInt("Seat") == seat) p = (NbtCompound) e;
             int row = top + rowStart + seat * rowStep; boolean acting = state.getBoolean("InHand") && state.getInt("Actor") == seat;
@@ -137,11 +141,13 @@ public final class PokerScreen extends Screen {
                     + "  " + p.getLong("Stack") + "  bet " + p.getLong("StreetBet") + status;
             context.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(line, panelWidth - 90), left + 14, row + 2, acting ? 0xFFF1A0 : 0xE0E6E0);
             if (p.getBoolean("InHand")) {
-                drawCard(context, p.getInt("First"), left + panelWidth - 60, row - 1, rowStep < 18 ? .8F : 1F);
-                drawCard(context, p.getInt("Second"), left + panelWidth - 36, row - 1, rowStep < 18 ? .8F : 1F);
+                boolean revealing = !state.getBoolean("InHand") && PokerTableEffects.reveal(tablePos, seat, 0, delta) < 0;
+                drawCard(context, revealing && state.getInt("MySeat") != seat ? 0 : p.getInt("First"), left + panelWidth - 60, row - 1, rowStep < 18 ? .8F : 1F);
+                drawCard(context, revealing && state.getInt("MySeat") != seat ? 0 : p.getInt("Second"), left + panelWidth - 36, row - 1, rowStep < 18 ? .8F : 1F);
             }
         }
         String turn = state.getBoolean("InHand") ? "Turn timer: " + state.getInt("SecondsLeft") + "s · Raise input is the total street bet."
+                : state.getBoolean("CanShow") ? "Optional: Show hand to reveal your cards, or Muck to keep them private."
                 : "Host: " + state.getString("Host") + " · Sit on a stool, then join.";
         context.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(turn, panelWidth - 24), left + 12, top + actionY - 18, 0xBECBC1);
         super.render(context, mouseX, mouseY, delta);

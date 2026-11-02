@@ -7,6 +7,7 @@ import com.brait.pokercraft.client.PokerTableRenderer;
 import com.brait.pokercraft.client.PokerTableLightRenderer;
 import com.brait.pokercraft.client.PokerCameraMotion;
 import com.brait.pokercraft.client.PokerExperience;
+import com.brait.pokercraft.client.PokerCardLayout;
 import com.brait.pokercraft.block.entity.PokerTableBlockEntity;
 import com.brait.pokercraft.block.entity.PokerTableLightBlockEntity;
 import com.brait.pokercraft.registry.ModBlocks;
@@ -102,18 +103,82 @@ public final class PokerClientSmokeTest implements ClientModInitializer {
                     if (!(client.currentScreen instanceof LightPreview preview)) throw new AssertionError("Expected hanging-light preview");
                     preview.verifyModel();
                     screenshot(client, "poker-table-light.png");
-                    Files.writeString(report(client), "PASS: hanging light model, diffuser and inventory icon rendered; 480 live chip bones and empty-seat clearing; 54 card faces; camera and turn notifications; action icons; UI layouts; table and light screenshots.\n");
-                    PokerCraft.LOGGER.info("Poker client smoke tests passed."); phase = 8; client.scheduleStop();
+                    state = showdownState(); verifyShowdown(state);
+                    for (int[] size : new int[][]{{427, 240}, {640, 360}, {960, 540}})
+                        checkLayout(client, new PokerScreen(BlockPos.ORIGIN, state), size[0], size[1]);
+                    client.setScreen(new PokerScreen(BlockPos.ORIGIN, state)); phase = 8; ticks = 0;
+                } else if (phase == 8) {
+                    screenshot(client, "poker-showdown-ui.png");
+                    client.setScreen(new HudPreview(state)); phase = 9; ticks = 0;
+                } else if (phase == 9) {
+                    screenshot(client, "poker-showdown-hud.png");
+                    client.setScreen(new TablePreview(state, 65, .5F)); phase = 10; ticks = 0;
+                } else if (phase == 10) {
+                    screenshot(client, "poker-showdown-toss.png");
+                    client.setScreen(new TablePreview(state, 65, 1)); phase = 11; ticks = 0;
+                } else if (phase == 11) {
+                    screenshot(client, "poker-showdown-landed.png");
+                    Files.writeString(report(client), "PASS: showdown UI, optional show/muck, private losing cards and card-toss poses; hanging light model and inventory icon; 480 live chip bones; 54 card faces; camera and turn notifications; action icons; UI layouts and screenshots.\n");
+                    PokerCraft.LOGGER.info("Poker client smoke tests passed."); phase = 12; client.scheduleStop();
                 }
             } catch (Throwable failure) {
                 PokerCraft.LOGGER.error("Poker client smoke test failed", failure);
                 try { Files.writeString(report(client), "FAIL: " + failure + "\n"); } catch (Exception ignored) { }
-                phase = 8; client.scheduleStop();
+                phase = 12; client.scheduleStop();
             }
         });
     }
 
     private static Path report(MinecraftClient client) { return client.runDirectory.toPath().resolve("client-smoke-result.txt"); }
+
+    private static NbtCompound showdownState() {
+        PokerGame game = new PokerGame(new Random(7));
+        for (int i = 0; i < 3; i++) { game.join(new UUID(0, i + 1), "Player " + (i + 1), i); game.deposit(new UUID(0, i + 1), 200); }
+        game.start(0);
+        NbtCompound saved = game.save();
+        int[][] holes = {{1, 14}, {13, 26}, {12, 25}};
+        for (var e : saved.getList("Players", net.minecraft.nbt.NbtElement.COMPOUND_TYPE)) {
+            NbtCompound p = (NbtCompound) e; int seat = p.getInt("Seat");
+            p.putInt("First", holes[seat][0]); p.putInt("Second", holes[seat][1]);
+        }
+        saved.putIntArray("Deck", new int[]{50, 48, 35, 51, 46, 29, 41, 52});
+        game = PokerGame.load(saved);
+        for (int i = 0; i < 12 && game.street() != PokerGame.Street.RIVER; i++) {
+            var actor = game.player(game.actor());
+            if (actor == null) throw new AssertionError("Expected an actor while preparing showdown");
+            game.act(actor.id, PokerGame.Action.CHECK_CALL, 0, i + 1);
+        }
+        game.act(new UUID(0, 2), PokerGame.Action.RAISE_TO, 20, 20);
+        game.act(new UUID(0, 3), PokerGame.Action.CHECK_CALL, 0, 21);
+        game.act(new UUID(0, 1), PokerGame.Action.CHECK_CALL, 0, 22);
+        NbtCompound result = game.view(new UUID(0, 3), 22);
+        result.putBoolean("Admin", true); result.putInt("PhysicalSeat", 2); result.putString("Host", "Test host");
+        return result;
+    }
+
+    private static void verifyShowdown(NbtCompound state) {
+        if (!state.getBoolean("CanShow") || !PokerControls.enabled(0, state) || !PokerControls.enabled(1, state))
+            throw new AssertionError("Missing optional show / muck actions");
+        if (state.getList("WinningHands", net.minecraft.nbt.NbtElement.COMPOUND_TYPE).getCompound(0).getIntArray("BestFive").length != 5)
+            throw new AssertionError("Winner panel must contain the best five cards");
+        NbtCompound spectator = state.copy(); spectator.putInt("MySeat", -1);
+        for (var e : spectator.getList("Players", net.minecraft.nbt.NbtElement.COMPOUND_TYPE)) {
+            NbtCompound player = (NbtCompound) e;
+            if (player.getInt("Seat") == 2) { player.remove("First"); player.remove("Second"); }
+        }
+        var cards = PokerCardLayout.cards(BlockPos.ORIGIN, spectator, net.minecraft.util.math.Direction.NORTH, 0);
+        if (cards.stream().filter(card -> card.seat() == 2).anyMatch(card -> card.face() != 0))
+            throw new AssertionError("Unshown losing cards leak into the table layout");
+        for (var facing : net.minecraft.util.math.Direction.Type.HORIZONTAL) {
+            var start = PokerCardLayout.revealedCard(BlockPos.ORIGIN, facing, 0, 0, 1, 0);
+            var middle = PokerCardLayout.revealedCard(BlockPos.ORIGIN, facing, 0, 0, 1, .5F);
+            var end = PokerCardLayout.revealedCard(BlockPos.ORIGIN, facing, 0, 0, 1, 1);
+            if (start.tilt() != 65 || end.tilt() != 0 || Math.abs(end.center().y - .918) > .001)
+                throw new AssertionError("Revealed cards must start held and finish flat on the felt");
+            if (middle.center().y <= start.center().y || end.center().distanceTo(start.center()) < .1)
+                throw new AssertionError("Card toss must move inward in an airborne arc");
+        }
+    }
     private static void screenshot(MinecraftClient client, String name) {
         ScreenshotRecorder.saveScreenshot(client.runDirectory, name, client.getFramebuffer(), text -> PokerCraft.LOGGER.info(text.getString()));
     }
@@ -230,10 +295,14 @@ public final class PokerClientSmokeTest implements ClientModInitializer {
     private static final class TablePreview extends Screen {
         private final NbtCompound view;
         private final float angle;
+        private final float revealProgress;
         private final PokerTableRenderer renderer;
         private final PokerTableBlockEntity table = new PokerTableBlockEntity(BlockPos.ORIGIN, ModBlocks.POKER_TABLE.getDefaultState());
         TablePreview(NbtCompound view, float angle) {
-            super(Text.literal("Table preview")); this.view = view.copy(); this.angle = angle;
+            this(view, angle, 1);
+        }
+        TablePreview(NbtCompound view, float angle, float revealProgress) {
+            super(Text.literal("Table preview")); this.view = view.copy(); this.angle = angle; this.revealProgress = revealProgress;
             long[] balances = {990, 0, 100000, 13, 250, 1000};
             for (var e : this.view.getList("Players", net.minecraft.nbt.NbtElement.COMPOUND_TYPE)) {
                 NbtCompound p = (NbtCompound) e; p.putLong("Stack", balances[p.getInt("Seat")]);
@@ -263,7 +332,12 @@ public final class PokerClientSmokeTest implements ClientModInitializer {
             matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(angle));
             matrices.translate(-.5, -.4, -.5);
             renderTablePreview(renderer, table, context);
-            renderer.renderCards(table, view, 0, matrices, context.getVertexConsumers(), LightmapTextureManager.MAX_LIGHT_COORDINATE);
+            var cards = PokerCardLayout.cards(table.getPos(), view, net.minecraft.util.math.Direction.NORTH, 0);
+            java.util.Set<Integer> shown = new java.util.HashSet<>();
+            for (var e : view.getList("ShownHands", net.minecraft.nbt.NbtElement.COMPOUND_TYPE)) shown.add(((NbtCompound) e).getInt("Seat"));
+            var poses = cards.stream().map(card -> !card.community() && shown.contains(card.seat())
+                    ? PokerCardLayout.revealedCard(table.getPos(), net.minecraft.util.math.Direction.NORTH, card.seat(), card.index(), card.face(), revealProgress) : card).toList();
+            renderer.renderCardLayout(table, poses, matrices, context.getVertexConsumers(), LightmapTextureManager.MAX_LIGHT_COORDINATE);
             matrices.pop(); context.draw();
             context.drawCenteredTextWithShadow(textRenderer, "Table slots / private cards / action hotbar", width / 2, 10, 0xFFE9D99A);
             PokerControls.render(context, view);

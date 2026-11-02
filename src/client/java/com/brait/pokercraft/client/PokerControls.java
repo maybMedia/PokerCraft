@@ -70,6 +70,10 @@ public final class PokerControls {
     }
 
     private static String action(int slot, NbtCompound state) {
+        if (state.getBoolean("CanShow")) {
+            if (slot == 0) return "muck";
+            if (slot == 1) return "show";
+        }
         return switch (slot) {
             case 0 -> "fold"; case 1 -> "call"; case 2 -> "raise"; case 3 -> "minus";
             case 4 -> "plus"; case 5 -> "allin";
@@ -83,7 +87,7 @@ public final class PokerControls {
         boolean hand = s.getBoolean("InHand"), cash = s.getCompound("Config").getString("Mode").equals("CASH");
         boolean turn = !waiting && hand && s.getInt("MySeat") >= 0 && s.getInt("MySeat") == s.getInt("Actor");
         return switch (slot) {
-            case 0, 1 -> turn;
+            case 0, 1 -> turn || !waiting && s.getBoolean("CanShow");
             case 2, 3, 4 -> turn && s.getBoolean("CanRaise") && maxRaise(s) >= s.getLong("MinRaiseTo");
             case 5 -> turn && (s.getBoolean("CanRaise") || myPlayer(s).getLong("Stack") <= s.getLong("ToCall"));
             case 6 -> !waiting && !hand && (s.getInt("MySeat") < 0
@@ -134,8 +138,8 @@ public final class PokerControls {
 
     private static String label(int slot, NbtCompound s) {
         return switch (slot) {
-            case 0 -> "Fold";
-            case 1 -> s.getLong("ToCall") == 0 ? "Check" : "Call " + s.getLong("ToCall");
+            case 0 -> s.getBoolean("CanShow") ? "Muck hand (keep private)" : "Fold";
+            case 1 -> s.getBoolean("CanShow") ? "Show hand to the table" : s.getLong("ToCall") == 0 ? "Check" : "Call " + s.getLong("ToCall");
             case 2 -> "Raise to " + raiseTo;
             case 3 -> "Lower raise: " + raiseTo;
             case 4 -> "Increase raise: " + raiseTo;
@@ -176,7 +180,8 @@ public final class PokerControls {
         line(context, status, center, bottom - 81, 0xFFE9D99A);
         line(context, "Stack " + myPlayer(state).getLong("Stack") + "  |  " + label(selected, state), center, bottom - 67,
                 enabled(selected, state) ? 0xFFFFFFFF : 0xFF87978C);
-        String hint = selected == 3 || selected == 4 ? "Right-click: adjust  |  Ctrl: larger steps  |  Slot 3: confirm"
+        String hint = state.getBoolean("CanShow") ? "Optional reveal: slot 2 shows your hand / slot 1 mucks it"
+                : selected == 3 || selected == 4 ? "Right-click: adjust  |  Ctrl: larger steps  |  Slot 3: confirm"
                 : "1-9 / scroll: select  |  Right-click: use  |  V: top view";
         line(context, error.isEmpty() ? hint : error,
                 center, bottom - 53, error.isEmpty() ? 0xFFBCCABF : 0xFFFF9990);

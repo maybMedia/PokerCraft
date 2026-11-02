@@ -36,6 +36,12 @@ public final class PokerGame {
     private String result = "Waiting for players.";
     private long handId;
     private final Set<Integer> winningSeats = new LinkedHashSet<>();
+    private final NbtList winningHands = new NbtList();
+    private final NbtList shownHands = new NbtList();
+    private final List<Integer> showdownOrder = new ArrayList<>();
+    private final Set<Integer> shownSeats = new HashSet<>(), muckedSeats = new HashSet<>();
+    private int lastAggressor = -1;
+    private boolean showdownResult;
     private long eventId;
     private final NbtList events = new NbtList();
 
@@ -77,7 +83,7 @@ public final class PokerGame {
         require(config.mode() != PokerConfig.Mode.CASH || totalValue() == 0, "Cash out every cash-game balance before changing configuration.");
         config = next;
         for (Player p : players()) { p.stack = 0; clearHand(p); }
-        street = Street.WAITING; board.clear(); winningSeats.clear(); completedHands = 0; result = "Configuration saved."; version++;
+        street = Street.WAITING; board.clear(); winningSeats.clear(); clearReveals(); completedHands = 0; result = "Configuration saved."; version++;
         announce(result);
     }
 
@@ -131,7 +137,7 @@ public final class PokerGame {
         List<Player> funded = players().stream().filter(p -> p.stack > 0
                 && (config.mode() == PokerConfig.Mode.LAST_MAN_STANDING || p.available)).toList();
         require(funded.size() >= 2 && funded.stream().anyMatch(p -> p.available), "Waiting for funded, seated players.");
-        board.clear(); deck.clear(); pending.clear(); winningSeats.clear(); handId++;
+        board.clear(); deck.clear(); pending.clear(); winningSeats.clear(); clearReveals(); lastAggressor = -1; handId++;
         for (int i = 1; i <= 52; i++) deck.add(i);
         Collections.shuffle(deck, random);
         for (Player p : players()) { clearHand(p); p.inHand = funded.contains(p); }
@@ -185,6 +191,7 @@ public final class PokerGame {
             pay(p, target - p.streetBet);
             if (fullRaise) minRaise = currentBet == 0 ? target : increase;
             currentBet = target;
+            lastAggressor = p.seat;
             for (Player other : players()) if (other.canAct() && other != p && other.streetBet < currentBet) pending.add(other.seat);
         }
         announce(p.name + (action == Action.FOLD ? " folds." : wasAllIn || p.stack == 0 ? " goes all-in for " + p.streetBet + "."
@@ -229,7 +236,7 @@ public final class PokerGame {
     /** Stop/cancel returns all unsettled contributions, never awards an unfinished pot. */
     public void stop() {
         for (Player p : players()) { p.stack += p.contribution; clearHand(p); }
-        running = false; actor = -1; pending.clear(); board.clear(); winningSeats.clear(); street = Street.WAITING;
+        running = false; actor = -1; pending.clear(); board.clear(); winningSeats.clear(); clearReveals(); street = Street.WAITING;
         result = "Game stopped. Unsettled bets were returned."; version++;
         announce(result);
     }
@@ -252,7 +259,7 @@ public final class PokerGame {
         if (street == Street.PREFLOP) { street = Street.FLOP; for (int i = 0; i < 3; i++) board.add(draw()); }
         else { board.add(draw()); street = street == Street.FLOP ? Street.TURN : Street.RIVER; }
         announce(switch (street) { case FLOP -> "The flop is dealt."; case TURN -> "The turn is dealt."; default -> "The river is dealt."; });
-        currentBet = 0; minRaise = bigBlind;
+        currentBet = 0; minRaise = bigBlind; lastAggressor = -1;
         for (Player p : players()) {
             p.streetBet = 0; p.raiseUnlockedAt = 0;
             if (p.canAct()) pending.add(p.seat);
@@ -272,11 +279,14 @@ public final class PokerGame {
 
     private void settle(long now, boolean showdown) {
         List<Player> live = players().stream().filter(p -> p.inHand && !p.folded).toList();
+        boolean allIn = live.stream().anyMatch(p -> p.stack == 0);
         Map<Player, Long> scores = new HashMap<>(), payouts = new LinkedHashMap<>();
+        Map<Player, PokerHandEvaluator.Hand> hands = new HashMap<>();
         if (showdown) for (Player p : live) {
             int[] cards = new int[7]; cards[0] = p.firstCard; cards[1] = p.secondCard;
             for (int i = 0; i < 5; i++) cards[i + 2] = board.get(i);
-            scores.put(p, PokerHandEvaluator.best(cards));
+            PokerHandEvaluator.Hand hand = PokerHandEvaluator.evaluate(cards);
+            hands.put(p, hand); scores.put(p, hand.score());
         }
         if (live.isEmpty()) {
             for (Player p : players()) p.stack += p.contribution;
@@ -308,6 +318,18 @@ public final class PokerGame {
                     + (showdown ? " (" + PokerHandEvaluator.category(scores.get(e.getKey())) + ")" : ""))
                     .reduce((a, b) -> a + "; " + b).orElse("Hand completed.");
         }
+        showdownResult = showdown;
+        if (showdown) {
+            int first = live.stream().anyMatch(p -> p.seat == lastAggressor)
+                    ? lastAggressor : nextSeat(dealer, p -> p.inHand && !p.folded);
+            List<Player> ordered = new ArrayList<>(live);
+            ordered.sort(Comparator.comparingInt(p -> Math.floorMod(p.seat - first, SEATS)));
+            for (Player p : ordered) showdownOrder.add(p.seat);
+            for (Player p : ordered) {
+                if (allIn || p.seat == first || winningSeats.contains(p.seat))
+                    tableHand(p, payouts.getOrDefault(p, 0L), hands.get(p));
+            }
+        }
         for (Player p : players()) { p.streetBet = 0; p.contribution = 0; }
         street = showdown ? Street.SHOWDOWN : Street.WAITING; actor = -1; pending.clear();
         completedHands++; handEnded = now; version++;
@@ -323,6 +345,43 @@ public final class PokerGame {
             announce(payout.getKey().name + " wins " + payout.getValue()
                     + (showdown ? " (" + PokerHandEvaluator.category(scores.get(payout.getKey())) + ")" : "") + ".");
         if (street == Street.FINISHED && !payouts.isEmpty()) announce(result);
+    }
+
+    private void clearReveals() {
+        winningHands.clear(); shownHands.clear(); showdownOrder.clear(); shownSeats.clear(); muckedSeats.clear(); showdownResult = false;
+    }
+
+    private boolean canShow(Player p) {
+        return p != null && showdownResult && !inHand() && showdownOrder.contains(p.seat)
+                && !shownSeats.contains(p.seat) && !muckedSeats.contains(p.seat) && p.inHand && !p.folded;
+    }
+
+    /** Optional losing hands can be shown voluntarily; fold wins never trigger a reveal. */
+    public void show(UUID id) {
+        Player p = requirePlayer(id);
+        require(canShow(p), "There is no optional showdown hand to show.");
+        int[] cards = new int[7]; cards[0] = p.firstCard; cards[1] = p.secondCard;
+        for (int i = 0; i < 5; i++) cards[i + 2] = board.get(i);
+        PokerHandEvaluator.Hand hand = PokerHandEvaluator.evaluate(cards);
+        tableHand(p, 0, hand); version++;
+        announce(p.name + " shows " + PokerHandEvaluator.category(hand.score()) + ".");
+    }
+
+    public void muck(UUID id) {
+        Player p = requirePlayer(id);
+        require(canShow(p), "There is no optional showdown hand to muck.");
+        muckedSeats.add(p.seat); version++; announce(p.name + " mucks.");
+    }
+
+    private void tableHand(Player p, long amount, PokerHandEvaluator.Hand hand) {
+        NbtCompound reveal = new NbtCompound();
+        reveal.putInt("Seat", p.seat); reveal.putString("Name", p.name); reveal.putLong("Amount", amount);
+        reveal.putInt("First", p.firstCard); reveal.putInt("Second", p.secondCard);
+        reveal.putInt("Order", showdownOrder.indexOf(p.seat));
+        reveal.putString("Category", PokerHandEvaluator.category(hand.score())); reveal.putIntArray("BestFive", hand.cards());
+        shownHands.add(reveal); shownSeats.add(p.seat);
+        shownHands.sort(Comparator.comparingInt(e -> ((NbtCompound) e).getInt("Order")));
+        if (amount > 0) winningHands.add(reveal.copy());
     }
 
     private void clearHand(Player p) {
@@ -350,6 +409,9 @@ public final class PokerGame {
         n.putLong("ActionStarted", actionStarted); n.putLong("HandEnded", handEnded); n.putString("Result", result);
         n.putIntArray("Board", board); n.putIntArray("Deck", deck); n.putIntArray("Pending", new ArrayList<>(pending));
         n.putLong("HandId", handId); n.putIntArray("Winners", new ArrayList<>(winningSeats));
+        n.put("WinningHands", winningHands.copy());
+        n.put("ShownHands", shownHands.copy()); n.putIntArray("ShowdownOrder", showdownOrder);
+        n.putIntArray("MuckedSeats", new ArrayList<>(muckedSeats)); n.putBoolean("ShowdownResult", showdownResult); n.putInt("LastAggressor", lastAggressor);
         n.putLong("EventId", eventId); n.put("Events", events.copy());
         NbtList list = new NbtList();
         for (Player p : players()) {
@@ -372,6 +434,12 @@ public final class PokerGame {
         for (int seat : n.getIntArray("Pending")) g.pending.add(seat);
         g.handId = n.contains("HandId") ? n.getLong("HandId") : g.completedHands + (g.inHand() ? 1L : 0L);
         for (int seat : n.getIntArray("Winners")) g.winningSeats.add(seat);
+        g.winningHands.addAll(n.getList("WinningHands", NbtElement.COMPOUND_TYPE).copy());
+        g.shownHands.addAll(n.getList("ShownHands", NbtElement.COMPOUND_TYPE).copy());
+        for (NbtElement e : g.shownHands) g.shownSeats.add(((NbtCompound) e).getInt("Seat"));
+        for (int seat : n.getIntArray("ShowdownOrder")) g.showdownOrder.add(seat);
+        for (int seat : n.getIntArray("MuckedSeats")) g.muckedSeats.add(seat);
+        g.showdownResult = n.getBoolean("ShowdownResult"); g.lastAggressor = n.contains("LastAggressor") ? n.getInt("LastAggressor") : -1;
         g.eventId = n.getLong("EventId"); g.events.addAll(n.getList("Events", NbtElement.COMPOUND_TYPE).copy());
         for (NbtElement element : n.getList("Players", NbtElement.COMPOUND_TYPE)) {
             NbtCompound e = (NbtCompound) element; int seat = e.getInt("Seat");
@@ -396,14 +464,16 @@ public final class PokerGame {
         n.putInt("SecondsLeft", inHand() ? (int) Math.max(0, config.turnSeconds() - (now - actionStarted) / 20) : 0);
         n.putString("Result", result); n.putIntArray("Board", board);
         n.putLong("HandId", handId); n.putIntArray("Winners", new ArrayList<>(winningSeats));
+        n.put("WinningHands", winningHands.copy());
+        n.put("ShownHands", shownHands.copy()); n.putBoolean("ShowdownResult", showdownResult);
         n.putLong("EventId", eventId); n.put("Events", events.copy()); n.putLong("TurnStarted", actionStarted);
-        Player me = player(viewer); n.putInt("MySeat", me == null ? -1 : me.seat);
+        Player me = player(viewer); n.putInt("MySeat", me == null ? -1 : me.seat); n.putBoolean("CanShow", canShow(me));
         n.putLong("ToCall", toCall(me)); n.putBoolean("CanRaise", canRaise(me));
         NbtList list = new NbtList();
         for (Player p : players()) {
             NbtCompound e = new NbtCompound(); e.putString("Name", p.name); e.putInt("Seat", p.seat); e.putLong("Stack", p.stack);
             e.putLong("StreetBet", p.streetBet); e.putBoolean("InHand", p.inHand); e.putBoolean("Folded", p.folded); e.putBoolean("Available", p.available);
-            if (p.id.equals(viewer) || ((street == Street.SHOWDOWN || street == Street.FINISHED) && p.inHand && !p.folded)) {
+            if (p.id.equals(viewer) || (!inHand() && shownSeats.contains(p.seat) && p.inHand && !p.folded)) {
                 e.putInt("First", p.firstCard); e.putInt("Second", p.secondCard);
             }
             list.add(e);

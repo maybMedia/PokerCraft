@@ -25,6 +25,7 @@ public final class PokerTableEffects {
         final int[] rank = {-1, -1, -1, -1, -1, -1};
         int count;
         int[] winners = new int[0];
+        final Map<Integer, Long> reveals = new HashMap<>();
     }
     private PokerTableEffects() {}
     public static void clear() { MOTIONS.clear(); lastEffectTick = Long.MIN_VALUE; }
@@ -34,9 +35,16 @@ public final class PokerTableEffects {
         if (world == null) return;
         long now = world.getTime();
         Motion motion = MOTIONS.computeIfAbsent(pos, ignored -> new Motion());
-        if (previous == null) return; // Joining a table midway through a hand does not redeal it.
+        if (previous == null) {
+            // A spectator arriving after showdown sees already-landed cards, without replaying the toss.
+            for (NbtElement e : next.getList("ShownHands", NbtElement.COMPOUND_TYPE))
+                motion.reveals.put(((NbtCompound) e).getInt("Seat"), now - 1000);
+            return;
+        }
         if (previous.getLong("HandId") != next.getLong("HandId")) {
             motion.dealStart = now; motion.count = 0;
+            motion.reveals.clear();
+            motion.winners = new int[0]; motion.winStart = now - 1000;
             java.util.Arrays.fill(motion.rank, -1);
             java.util.Arrays.fill(motion.boardStart, now - 1000);
             for (int i = 1; i <= 6; i++) {
@@ -47,6 +55,11 @@ public final class PokerTableEffects {
                 }
             }
         }
+        int revealIndex = 0;
+        for (NbtElement e : next.getList("ShownHands", NbtElement.COMPOUND_TYPE)) {
+            int seat = ((NbtCompound) e).getInt("Seat");
+            if (!motion.reveals.containsKey(seat)) motion.reveals.put(seat, now + revealIndex++ * 8L);
+        }
         int oldBoard = previous.getLong("HandId") == next.getLong("HandId") ? previous.getIntArray("Board").length : 0;
         for (int i = oldBoard; i < next.getIntArray("Board").length; i++) motion.boardStart[i] = now + (i - oldBoard) * 3L;
         if (next.getIntArray("Winners").length > 0 && (previous.getIntArray("Winners").length == 0
@@ -55,9 +68,12 @@ public final class PokerTableEffects {
         }
     }
     private static float progress(long start, float delta) {
+        return progress(start, delta, 8);
+    }
+    private static float progress(long start, float delta, int duration) {
         var world = MinecraftClient.getInstance().world;
         if (world == null) return 1;
-        float t = (world.getTime() - start + delta) / 8F;
+        float t = (world.getTime() - start + delta) / duration;
         if (t < 0) return -1;
         t = Math.min(1, t);
         return t * t * (3 - 2 * t);
@@ -69,6 +85,11 @@ public final class PokerTableEffects {
     public static float board(BlockPos pos, int card, float delta) {
         Motion m = MOTIONS.get(pos);
         return m == null ? 1 : progress(m.boardStart[card], delta);
+    }
+    public static float reveal(BlockPos pos, int seat, int card, float delta) {
+        Motion motion = MOTIONS.get(pos);
+        Long start = motion == null ? null : motion.reveals.get(seat);
+        return start == null ? 1 : progress(start + card * 2L, delta, 16);
     }
     public static void tick(MinecraftClient client) {
         if (client.world == null || client.player == null) return;

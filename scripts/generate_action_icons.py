@@ -8,13 +8,21 @@ ASSETS = ROOT / "src/main/resources/assets/pokercraft"
 GOLD, LIGHT, INK = "#e9d99a", "#f4ead2", "#26332e"
 NAMES = {"fold": "Fold", "call": "Check / Call", "raise": "Raise", "minus": "Lower Raise",
          "plus": "Increase Raise", "allin": "All-in", "join": "Join Table", "buyin": "Buy In",
-         "admin": "Host Controls", "info": "Table Overview", "leave": "Leave / Cash Out"}
+         "admin": "Host Controls", "info": "Table Overview", "leave": "Leave / Cash Out",
+         "show": "Show Hand", "muck": "Muck Hand"}
 
 
 def icon(action):
     im = Image.new("RGBA", (16, 16))
     d = ImageDraw.Draw(im)
-    if action == "fold":
+    if action == "show":
+        d.rounded_rectangle((1, 2, 8, 13), radius=1, fill=LIGHT, outline=GOLD)
+        d.rounded_rectangle((7, 1, 14, 12), radius=1, fill=LIGHT, outline=GOLD)
+        d.polygon(((4, 5), (2, 8), (4, 10), (6, 8)), fill="#8d3548")
+        d.polygon(((10, 4), (8, 7), (12, 7)), fill=INK)
+        d.rectangle((10, 6, 10, 9), fill=INK)
+        d.line((2, 15, 13, 15), fill=GOLD, width=1)
+    elif action in ("fold", "muck"):
         d.rounded_rectangle((2, 1, 10, 13), radius=1, fill=LIGHT, outline=INK)
         d.rounded_rectangle((6, 3, 14, 15), radius=1, fill="#8d3548", outline=GOLD)
         d.line((8, 6, 12, 12), fill=LIGHT, width=2)

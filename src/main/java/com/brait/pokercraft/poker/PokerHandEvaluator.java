@@ -10,7 +10,16 @@ public final class PokerHandEvaluator {
     public static final String[] CATEGORIES = {"High card", "One pair", "Two pair", "Three of a kind", "Straight",
             "Flush", "Full house", "Four of a kind", "Straight flush"};
 
+    public record Hand(long score, List<Integer> cards) {
+        public Hand { cards = List.copyOf(cards); }
+    }
+
     public static long best(int... cards) {
+        return evaluate(cards).score();
+    }
+
+    /** Returns the best five cards, ordered by rank groups (with an ace last in a wheel). */
+    public static Hand evaluate(int... cards) {
         if (cards.length < 5 || cards.length > 7) throw new IllegalArgumentException("Evaluate five to seven cards.");
         long seen = 0;
         for (int card : cards) {
@@ -18,11 +27,27 @@ public final class PokerHandEvaluator {
             seen |= 1L << card;
         }
         long score = -1;
+        List<Integer> selected = List.of();
         for (int a = 0; a < cards.length - 4; a++) for (int b = a + 1; b < cards.length - 3; b++)
             for (int c = b + 1; c < cards.length - 2; c++) for (int d = c + 1; d < cards.length - 1; d++)
-                for (int e = d + 1; e < cards.length; e++) score = Math.max(score, five(cards[a], cards[b], cards[c], cards[d], cards[e]));
-        return score;
+                for (int e = d + 1; e < cards.length; e++) {
+                    long candidate = five(cards[a], cards[b], cards[c], cards[d], cards[e]);
+                    if (candidate > score) {
+                        score = candidate;
+                        selected = List.of(cards[a], cards[b], cards[c], cards[d], cards[e]);
+                    }
+                }
+        int[] counts = new int[15];
+        for (int card : selected) counts[rank(card)]++;
+        int category = (int) (score / 759375);
+        boolean wheel = (category == 4 || category == 8) && counts[14] == 1 && counts[5] == 1;
+        List<Integer> ordered = new ArrayList<>(selected);
+        ordered.sort(Comparator.<Integer>comparingInt(card -> counts[rank(card)]).reversed()
+                .thenComparing(Comparator.<Integer>comparingInt(card -> wheel && rank(card) == 14 ? 1 : rank(card)).reversed()));
+        return new Hand(score, ordered);
     }
+
+    private static int rank(int card) { int rank = (card - 1) % 13; return rank == 0 ? 14 : rank + 1; }
 
     public static String category(long score) { return CATEGORIES[(int) (score / 759375)]; }
 

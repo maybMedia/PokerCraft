@@ -121,6 +121,9 @@ public final class PokerExperience {
                     PokerTableEffects.hole(pos, me.getInt("Seat"), i, delta));
         }
         context.disableScissor();
+        int resultWidth = Math.min(420, context.getScaledWindowWidth() - 24);
+        PokerShowdownView.render(context, pos, state, center - resultWidth / 2, 85, resultWidth,
+                Math.min(116, context.getScaledWindowHeight() - 174), delta);
         context.getMatrices().pop();
     }
     private static void drawCard(DrawContext context, int face, int x, float progress) {

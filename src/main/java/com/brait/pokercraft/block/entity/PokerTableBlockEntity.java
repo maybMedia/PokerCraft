@@ -90,6 +90,10 @@ public final class PokerTableBlockEntity extends BlockEntity implements GeoBlock
                     deliver(player, PokerChips.withdraw(player, amount, game.config()));
                 }
                 case "leave" -> issuePayout(player.getUuid(), game.leave(player.getUuid()));
+                case "show", "muck" -> {
+                    if (data.getLong("Version") != game.version()) throw new IllegalArgumentException("The table changed; choose your action again.");
+                    if (command.equals("show")) game.show(player.getUuid()); else game.muck(player.getUuid());
+                }
                 case "configure" -> { requireAdmin(player); game.configure(PokerConfig.fromNbt(data.getCompound("Config"))); }
                 case "start" -> { requireAdmin(player); updateAvailability(now); game.start(now); }
                 case "next" -> { requireAdmin(player); updateAvailability(now); game.startHand(now); }

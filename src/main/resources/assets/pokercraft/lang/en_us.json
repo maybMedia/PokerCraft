@@ -93,5 +93,7 @@
   "item.pokercraft.card_back": "Hidden Card",
   "key.pokercraft.overhead": "Toggle Overhead Table View",
   "block.pokercraft.poker_table_light": "Hanging Poker Table Light",
-  "message.pokercraft.light_no_room": "Place under a solid ceiling with a clear 3 x 1 area, two blocks high below it."
+  "message.pokercraft.light_no_room": "Place under a solid ceiling with a clear 3 x 1 area, two blocks high below it.",
+  "item.pokercraft.action_show": "Show Hand",
+  "item.pokercraft.action_muck": "Muck Hand"
 }

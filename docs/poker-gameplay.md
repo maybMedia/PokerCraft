@@ -87,6 +87,24 @@ The starting stack/buy-in minimum must cover the initial big blind.
   rotates, including the special heads-up blind/action order.
 - Side pots are limited to eligible contributions. Equal hands split the pot;
   odd smallest-denomination chips go clockwise from the dealer button.
+- At showdown, each pot winner's two hole cards arc from their held position
+  onto the felt. The HUD and table overview show their name, payout, hand
+  category, both hole cards, and the actual best five-card combination. Split
+  and side-pot winners each have a result; compact panels cycle through winners.
+  Cards and result panels remain until the next hand or the host stops the game.
+- Showdown uses the enforced order described in the
+  [Poker TDA showdown rules](https://www.pokertda.com/view-poker-tda-rules/):
+  the last river bettor or raiser tables first; if the river checks through,
+  the first live player left of the button tables first. Remaining reveals
+  proceed clockwise. Winning hands must table both hole cards, even when
+  playing the board. All live main- and side-pot hands are tabled at all-in
+  showdowns. Folded hands are never shown to opponents.
+- Other losing hands at a non-all-in showdown remain private. Their owner may
+  choose **Show hand** in hotbar slot **2**, or **Muck** in slot **1**, selecting
+  and right-clicking as usual. The overview offers the same two buttons.
+  Showing voluntarily also animates the cards onto the table. Doing nothing
+  keeps them private; mucking makes that decision final for the hand. A win
+  because everyone folded has no public winning-hand reveal.
 - Last man standing ends when one player has chips left. Eliminated players
   remain at zero until the tournament ends or the host stops it.
 

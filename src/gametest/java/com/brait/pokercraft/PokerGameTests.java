@@ -135,6 +135,9 @@ public class PokerGameTests implements FabricGameTest {
         NbtCompound result = g.view(UUID.randomUUID(), 1);
         c.assertEquals(result.getIntArray("Winners").length, 1, "A fold win identifies the awarded seat");
         c.assertEquals(result.getIntArray("Winners")[0], 1, "Celebrate the player who received the pot");
+        c.assertTrue(result.getList("WinningHands", NbtElement.COMPOUND_TYPE).isEmpty(), "Fold wins never publish a winning hand");
+        c.assertTrue(result.getList("ShownHands", NbtElement.COMPOUND_TYPE).isEmpty(), "Fold wins never table hole cards");
+        c.assertFalse(g.view(id(1), 1).getBoolean("CanShow"), "Fold wins do not offer a showdown reveal");
         for (NbtElement e : result.getList("Players", NbtElement.COMPOUND_TYPE)) {
             c.assertFalse(((NbtCompound) e).contains("First"), "A celebration must not reveal unshown hole cards");
         }
@@ -349,6 +352,99 @@ public class PokerGameTests implements FabricGameTest {
         g.startHand(902); g.act(id(g.actor()), PokerGame.Action.CHECK_CALL, 0, 903);
         int before = g.actor(); g.tick(1804); c.assertEquals(g.street(), PokerGame.Street.FLOP, "Free big-blind option times out to check");
         c.assertTrue(before >= 0, "There was an actionable big blind"); c.complete();
+    }
+
+    private static PokerGame riverGame() {
+        PokerGame game = game(200, 200, 200); game.start(0);
+        game = rig(game, new int[][]{{1, 14}, {13, 26}, {12, 25}}, 41, 29, 46, 35, 50);
+        game.act(id(0), PokerGame.Action.RAISE_TO, 30, 1);
+        for (int i = 0; i < 12 && game.street() != PokerGame.Street.RIVER; i++)
+            game.act(requirePlayer(game, game.actor()).id, PokerGame.Action.CHECK_CALL, 0, i + 2);
+        if (game.street() != PokerGame.Street.RIVER) throw new AssertionError("Expected a river with three live players");
+        return game;
+    }
+
+    @SuppressWarnings("unused")
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void bestFiveCardsDescribeTheActualWinningCombination(TestContext c) {
+        PokerHandEvaluator.Hand board = PokerHandEvaluator.evaluate(2, 3, 23, 24, 25, 26, 14);
+        c.assertEquals(board.cards(), List.of(14, 26, 25, 24, 23), "A board-playing royal flush shows exactly the board in rank order");
+        c.assertEquals(PokerHandEvaluator.best(board.cards().stream().mapToInt(Integer::intValue).toArray()), board.score(), "Displayed five cards have the awarded score");
+        PokerHandEvaluator.Hand wheel = PokerHandEvaluator.evaluate(1, 15, 29, 43, 5, 20, 35);
+        c.assertEquals(wheel.cards(), List.of(5, 43, 29, 15, 1), "A wheel displays the ace as low");
+        c.assertEquals(PokerHandEvaluator.category(wheel.score()), "Straight", "Best-five selection preserves evaluation");
+        c.complete();
+    }
+
+    @SuppressWarnings("unused")
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void riverAggressorShowsFirstAndOptionalLoserCanShow(TestContext c) {
+        PokerGame game = riverGame();
+        c.assertTrue(game.view(UUID.randomUUID(), 20).getList("ShownHands", NbtElement.COMPOUND_TYPE).isEmpty(), "No reveal data exists before showdown");
+        game.act(id(1), PokerGame.Action.RAISE_TO, 20, 20);
+        game.act(id(2), PokerGame.Action.CHECK_CALL, 0, 21);
+        game.act(id(0), PokerGame.Action.CHECK_CALL, 0, 22);
+        NbtCompound publicView = game.view(UUID.randomUUID(), 22);
+        var shown = publicView.getList("ShownHands", NbtElement.COMPOUND_TYPE);
+        c.assertEquals(shown.size(), 2, "Only the first-to-show and the winning hand are required");
+        c.assertEquals(shown.getCompound(0).getInt("Seat"), 1, "Last river aggressor tables first even when losing");
+        c.assertEquals(shown.getCompound(1).getInt("Seat"), 0, "Winning caller shows after the aggressor");
+        c.assertEquals(shown.getCompound(1).getInt("Order"), 2, "Reveal order continues clockwise past optional players");
+        var wins = publicView.getList("WinningHands", NbtElement.COMPOUND_TYPE);
+        c.assertEquals(wins.size(), 1, "Only actual pot winners receive a winning-hand panel");
+        c.assertEquals(wins.getCompound(0).getIntArray("BestFive").length, 5, "The winning hand includes its best five cards");
+        c.assertTrue(game.view(id(2), 22).getBoolean("CanShow"), "Other losing callers may choose to show");
+        c.assertFalse(game.view(id(1), 22).getBoolean("CanShow"), "Mandatory reveals cannot be mucked afterwards");
+        for (NbtElement e : publicView.getList("Players", NbtElement.COMPOUND_TYPE)) {
+            NbtCompound player = (NbtCompound) e;
+            if (player.getInt("Seat") == 2) c.assertFalse(player.contains("First"), "Optional losing cards stay private");
+        }
+        reject(c, () -> game.show(UUID.randomUUID()));
+        reject(c, () -> game.muck(id(0)));
+        game.show(id(2));
+        c.assertEquals(game.view(UUID.randomUUID(), 23).getList("ShownHands", NbtElement.COMPOUND_TYPE).size(), 3, "A voluntary reveal reaches spectators");
+        c.assertEquals(game.view(UUID.randomUUID(), 23).getList("WinningHands", NbtElement.COMPOUND_TYPE).size(), 1, "Voluntary losers do not become winners");
+        reject(c, () -> game.show(id(2)));
+        c.complete();
+    }
+
+    @SuppressWarnings("unused")
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void checkedRiverStartsLeftOfButtonAndMuckingPersists(TestContext c) {
+        PokerGame game = riverGame();
+        for (int i = 0; i < 3; i++) game.act(requirePlayer(game, game.actor()).id, PokerGame.Action.CHECK_CALL, 0, 20 + i);
+        var shown = game.view(UUID.randomUUID(), 23).getList("ShownHands", NbtElement.COMPOUND_TYPE);
+        c.assertEquals(shown.getCompound(0).getInt("Seat"), 1, "A checked river starts left of the button, ignoring preflop aggression");
+        game.muck(id(2));
+        PokerGame loaded = PokerGame.load(game.save());
+        c.assertFalse(loaded.view(id(2), 24).getBoolean("CanShow"), "A muck decision survives reload");
+        reject(c, () -> loaded.show(id(2)));
+        c.assertEquals(loaded.view(UUID.randomUUID(), 24).getList("ShownHands", NbtElement.COMPOUND_TYPE), shown, "Mucking never publishes the private cards");
+        loaded.stop();
+        c.assertTrue(loaded.view(UUID.randomUUID(), 25).getList("WinningHands", NbtElement.COMPOUND_TYPE).isEmpty(), "Stopping clears old reveal panels");
+        c.complete();
+    }
+
+    @SuppressWarnings("unused")
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void allInSidePotsRevealEveryLiveHandAndSurviveCashOut(TestContext c) {
+        PokerGame game = game(100, 200, 300); game.start(0);
+        game = rig(game, new int[][]{{1, 14}, {13, 26}, {12, 25}}, 41, 29, 46, 35, 50);
+        game.act(id(0), PokerGame.Action.ALL_IN, 0, 1); game.act(id(1), PokerGame.Action.ALL_IN, 0, 2);
+        game.act(id(2), PokerGame.Action.CHECK_CALL, 0, 3);
+        NbtCompound view = game.view(UUID.randomUUID(), 3);
+        c.assertEquals(view.getList("ShownHands", NbtElement.COMPOUND_TYPE).size(), 3, "All-in main and side-pot hands must all be shown");
+        var wins = view.getList("WinningHands", NbtElement.COMPOUND_TYPE);
+        c.assertEquals(wins.size(), 2, "Main and side-pot winners each have a result");
+        c.assertEquals(wins.stream().mapToLong(e -> ((NbtCompound) e).getLong("Amount")).sum(), 500L, "Reveal amounts match the awarded pots, excluding uncalled chips");
+        game.leave(id(0));
+        PokerGame loaded = PokerGame.load(game.save());
+        c.assertEquals(loaded.view(UUID.randomUUID(), 4).getList("WinningHands", NbtElement.COMPOUND_TYPE), wins, "Result cards survive a winner cashing out and world reload");
+        loaded.startHand(200);
+        c.assertTrue(loaded.view(UUID.randomUUID(), 200).getList("ShownHands", NbtElement.COMPOUND_TYPE).isEmpty(), "The next deal clears every reveal");
+        for (NbtElement e : loaded.view(UUID.randomUUID(), 200).getList("Players", NbtElement.COMPOUND_TYPE))
+            c.assertFalse(((NbtCompound) e).contains("First"), "Previous reveals never expose the next hand");
+        c.complete();
     }
 
     @SuppressWarnings("unused")
