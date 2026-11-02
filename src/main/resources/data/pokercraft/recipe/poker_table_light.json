@@ -1,0 +1,7 @@
+{
+  "type":"minecraft:crafting_shaped",
+  "category":"building",
+  "pattern":["I I","CGC","PPP"],
+  "key":{"I":{"item":"minecraft:iron_ingot"},"C":{"item":"minecraft:chain"},"G":{"item":"minecraft:glowstone"},"P":{"item":"minecraft:glass_pane"}},
+  "result":{"id":"pokercraft:poker_table_light","count":1}
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "pokercraft_test",
+  "version": "1.0.0",
+  "name": "PokerCraft Game Tests",
+  "environment": "server",
+  "entrypoints": { "fabric-gametest": ["com.brait.pokercraft.PokerTableGameTests", "com.brait.pokercraft.PlayingCardGameTests", "com.brait.pokercraft.CardDeckGameTests", "com.brait.pokercraft.PokerGameTests", "com.brait.pokercraft.PokerTableIntegrationTests", "com.brait.pokercraft.PokerTableLightGameTests"] },
+  "depends": { "pokercraft": "*", "fabric-gametest-api-v1": "*" }
+}

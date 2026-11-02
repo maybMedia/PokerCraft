@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "pokercraft_client_smoke",
+  "version": "1.0.0",
+  "name": "PokerCraft Client Smoke Tests",
+  "environment": "client",
+  "entrypoints": { "client": ["com.brait.pokercraft.PokerClientSmokeTest"] },
+  "depends": { "pokercraft": "*", "fabric-api": "*" }
+}

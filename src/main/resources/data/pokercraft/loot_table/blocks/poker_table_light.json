@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:block",
+  "pools": [{"rolls":1,"entries":[{"type":"minecraft:item","name":"pokercraft:poker_table_light"}],
+    "conditions":[{"condition":"minecraft:survives_explosion"},
+      {"condition":"minecraft:block_state_property","block":"pokercraft:poker_table_light","properties":{"part_x":"1","level":"0"}}]}]
+}

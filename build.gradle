@@ -1,0 +1,88 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+sourceSets {
+    clientSmoke {}
+    gametest {
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+}
+
+loom {
+    splitEnvironmentSourceSets()
+    mods {
+        pokercraft {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+        pokercraft_test {
+            sourceSet sourceSets.gametest
+        }
+        pokercraft_client_smoke {
+            sourceSet sourceSets.clientSmoke
+        }
+    }
+    runs {
+        clientSmoke {
+            client()
+            name = 'PokerCraft Client Smoke Tests'
+            source sourceSets.clientSmoke
+            runDir 'build/clientSmoke'
+            vmArg '-Dpokercraft.clientSmoke=true'
+        }
+        gametest {
+            server()
+            name = 'PokerCraft Game Tests'
+            source sourceSets.gametest
+            runDir 'build/gametest'
+            vmArg '-Dfabric-api.gametest'
+            vmArg "-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.file('reports/gametest.xml').get().asFile}"
+        }
+    }
+}
+
+sourceSets.clientSmoke.compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+sourceSets.clientSmoke.runtimeClasspath += sourceSets.client.runtimeClasspath + sourceSets.main.output + sourceSets.client.output
+
+repositories {
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content { includeGroup 'software.bernie.geckolib' }
+    }
+}
+
+dependencies {
+    gametestImplementation sourceSets.main.output
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modImplementation "software.bernie.geckolib:geckolib-fabric-${minecraft_version}:${geckolib_version}"
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = 'UTF-8'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}

@@ -1,0 +1,7 @@
+{
+  "parent": "pokercraft:item/playing_card_base",
+  "textures": {
+    "0": "pokercraft:item/cards/5_of_spades",
+    "particle": "pokercraft:item/cards/5_of_spades"
+  }
+}

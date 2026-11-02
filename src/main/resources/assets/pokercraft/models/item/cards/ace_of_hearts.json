@@ -1,0 +1,7 @@
+{
+  "parent": "pokercraft:item/playing_card_base",
+  "textures": {
+    "0": "pokercraft:item/cards/ace_of_hearts",
+    "particle": "pokercraft:item/cards/ace_of_hearts"
+  }
+}

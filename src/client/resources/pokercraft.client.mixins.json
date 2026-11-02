@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "com.brait.pokercraft.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["HeldItemRendererMixin", "ItemRendererMixin", "PokerInputMixin", "PokerHotbarMixin", "PokerScrollMixin", "PokerCameraMixin"],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

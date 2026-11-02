@@ -1,0 +1,7 @@
+{
+  "parent": "pokercraft:item/playing_card_base",
+  "textures": {
+    "0": "pokercraft:item/cards/9_of_diamonds",
+    "particle": "pokercraft:item/cards/9_of_diamonds"
+  }
+}

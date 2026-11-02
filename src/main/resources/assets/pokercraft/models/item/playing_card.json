@@ -1,0 +1,329 @@
+{
+  "parent": "pokercraft:item/playing_card_base",
+  "overrides": [
+    {
+      "predicate": {
+        "custom_model_data": 1
+      },
+      "model": "pokercraft:item/cards/ace_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 2
+      },
+      "model": "pokercraft:item/cards/2_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 3
+      },
+      "model": "pokercraft:item/cards/3_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 4
+      },
+      "model": "pokercraft:item/cards/4_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 5
+      },
+      "model": "pokercraft:item/cards/5_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 6
+      },
+      "model": "pokercraft:item/cards/6_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 7
+      },
+      "model": "pokercraft:item/cards/7_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 8
+      },
+      "model": "pokercraft:item/cards/8_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 9
+      },
+      "model": "pokercraft:item/cards/9_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 10
+      },
+      "model": "pokercraft:item/cards/10_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 11
+      },
+      "model": "pokercraft:item/cards/jack_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 12
+      },
+      "model": "pokercraft:item/cards/queen_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 13
+      },
+      "model": "pokercraft:item/cards/king_of_spades"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 14
+      },
+      "model": "pokercraft:item/cards/ace_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 15
+      },
+      "model": "pokercraft:item/cards/2_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 16
+      },
+      "model": "pokercraft:item/cards/3_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 17
+      },
+      "model": "pokercraft:item/cards/4_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 18
+      },
+      "model": "pokercraft:item/cards/5_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 19
+      },
+      "model": "pokercraft:item/cards/6_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 20
+      },
+      "model": "pokercraft:item/cards/7_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 21
+      },
+      "model": "pokercraft:item/cards/8_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 22
+      },
+      "model": "pokercraft:item/cards/9_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 23
+      },
+      "model": "pokercraft:item/cards/10_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 24
+      },
+      "model": "pokercraft:item/cards/jack_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 25
+      },
+      "model": "pokercraft:item/cards/queen_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 26
+      },
+      "model": "pokercraft:item/cards/king_of_hearts"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 27
+      },
+      "model": "pokercraft:item/cards/ace_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 28
+      },
+      "model": "pokercraft:item/cards/2_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 29
+      },
+      "model": "pokercraft:item/cards/3_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 30
+      },
+      "model": "pokercraft:item/cards/4_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 31
+      },
+      "model": "pokercraft:item/cards/5_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 32
+      },
+      "model": "pokercraft:item/cards/6_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 33
+      },
+      "model": "pokercraft:item/cards/7_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 34
+      },
+      "model": "pokercraft:item/cards/8_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 35
+      },
+      "model": "pokercraft:item/cards/9_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 36
+      },
+      "model": "pokercraft:item/cards/10_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 37
+      },
+      "model": "pokercraft:item/cards/jack_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 38
+      },
+      "model": "pokercraft:item/cards/queen_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 39
+      },
+      "model": "pokercraft:item/cards/king_of_diamonds"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 40
+      },
+      "model": "pokercraft:item/cards/ace_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 41
+      },
+      "model": "pokercraft:item/cards/2_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 42
+      },
+      "model": "pokercraft:item/cards/3_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 43
+      },
+      "model": "pokercraft:item/cards/4_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 44
+      },
+      "model": "pokercraft:item/cards/5_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 45
+      },
+      "model": "pokercraft:item/cards/6_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 46
+      },
+      "model": "pokercraft:item/cards/7_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 47
+      },
+      "model": "pokercraft:item/cards/8_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 48
+      },
+      "model": "pokercraft:item/cards/9_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 49
+      },
+      "model": "pokercraft:item/cards/10_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 50
+      },
+      "model": "pokercraft:item/cards/jack_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 51
+      },
+      "model": "pokercraft:item/cards/queen_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 52
+      },
+      "model": "pokercraft:item/cards/king_of_clubs"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 53
+      },
+      "model": "pokercraft:item/cards/red_joker"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 54
+      },
+      "model": "pokercraft:item/cards/black_joker"
+    }
+  ]
+}
